@@ -2,6 +2,14 @@
 
 A comprehensive script for installing tmux via AppImage with a complete, production-ready configuration.
 
+## 🚀 One-line Installation
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/harpomaxx/tmux-installer/main/install-tmux.sh | bash
+```
+
+That's it! The script will install tmux, create a safe configuration, and set everything up automatically.
+
 ## Features
 
 - **Latest Tmux**: Downloads the latest tmux AppImage from [nelsonenzo/tmux-appimage](https://github.com/nelsonenzo/tmux-appimage)
@@ -11,10 +19,14 @@ A comprehensive script for installing tmux via AppImage with a complete, product
 - **Plugin Management**: Pre-configured with TPM (Tmux Plugin Manager) and popular plugins
 - **Clipboard Integration**: Automatic clipboard helper installation (wl-clipboard, xclip)
 - **Smart PATH Management**: Automatically adds `~/.local/bin` to PATH
+- **Hang-safe**: Configuration designed to prevent startup issues
 
-## Quick Start
+## Alternative Installation
+
+If you prefer to download the script first:
 
 ```bash
+curl -fLO https://raw.githubusercontent.com/harpomaxx/tmux-installer/main/install-tmux.sh
 chmod +x install-tmux.sh
 ./install-tmux.sh
 ```
@@ -52,7 +64,16 @@ The script creates a full-featured tmux configuration with:
 - **tmux-continuum**: Automatic session saving
 - **catppuccin/tmux**: Beautiful Catppuccin theme
 
-After installation, press `Prefix + I` (Ctrl-a + I) to install plugins.
+### Installing Plugins & Theme
+
+After running the installer, tmux will work immediately with basic functionality. To get the beautiful theme and extra features:
+
+1. Start tmux: `tmux`
+2. Install plugins: `Prefix + I` (Ctrl-a + I)
+3. Wait for installation messages to complete
+4. Restart tmux or reload: `Prefix + r` (Ctrl-a + r)
+
+The gorgeous Catppuccin Mocha theme will then be active!
 
 ## Environment Variables
 
