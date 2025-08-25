@@ -81,8 +81,15 @@ fi
 
 # --- ensure ~/.local/bin on PATH ---
 mkdir -p "$HOME/.local/bin"
+
+# Always ensure ~/.local/bin is in current session's PATH
 if ! printf "%s" "$PATH" | tr ':' '\n' | grep -qx "$HOME/.local/bin"; then
-  msg "Adding ~/.local/bin to PATH (shell rc)"
+  export PATH="$HOME/.local/bin:$PATH"
+  msg "Added ~/.local/bin to current session PATH"
+fi
+
+# Also add to shell rc for future sessions (if not already there)
+if ! grep -q 'export PATH=.*\.local/bin' "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.${SHELL##*/}rc" 2>/dev/null; then
   SHELL_NAME="$(basename "${SHELL:-bash}")"
   RC_FILE="$HOME/.${SHELL_NAME}rc"
   if [[ ! -f "$RC_FILE" ]]; then
@@ -96,8 +103,7 @@ if ! printf "%s" "$PATH" | tr ':' '\n' | grep -qx "$HOME/.local/bin"; then
     echo '# Added by install-tmux.sh'
     echo 'export PATH="$HOME/.local/bin:$PATH"'
   } >> "$RC_FILE"
-  export PATH="$HOME/.local/bin:$PATH"
-  msg "PATH updated in $(basename "$RC_FILE"). Open a new shell to persist."
+  msg "PATH updated in $(basename "$RC_FILE") for future sessions."
 fi
 
 # --- install tmux AppImage (latest) ---
