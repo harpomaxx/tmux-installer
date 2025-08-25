@@ -280,7 +280,7 @@ set -g status-right "#(whoami) • #{hostname} • %Y-%m-%d %H:%M"
 if-shell '[ "$(tmux -V | cut -d" " -f2 | tr -d "[:alpha:]")" \> "3.1" ]' \
   'bind -n F2 display-popup -E -w 80% -h 80% -T "Quick Shell"'
 
-##### Plugins (TPM) - Only load if TPM exists and plugins are installed
+##### Plugins (TPM) - Only load if TPM exists
 if-shell '[ -f ~/.tmux/plugins/tpm/tpm ]' {
   set -g @plugin 'tmux-plugins/tpm'
   set -g @plugin 'tmux-plugins/tmux-sensible'
@@ -289,12 +289,14 @@ if-shell '[ -f ~/.tmux/plugins/tpm/tpm ]' {
   set -g @plugin 'tmux-plugins/tmux-continuum'
   set -g @plugin 'catppuccin/tmux'
 
-  # Catppuccin theme tweaks
-  set -g @catppuccin_flavour 'mocha'
-  set -g @catppuccin_window_status_style 'rounded'
-  set -g @catppuccin_date_time "%H:%M"
-  set -g @catppuccin_left_separator  ""
-  set -g @catppuccin_right_separator ""
+  # Catppuccin theme tweaks (only applied when theme is installed)
+  if-shell '[ -d ~/.tmux/plugins/catppuccin ]' {
+    set -g @catppuccin_flavour 'mocha'
+    set -g @catppuccin_window_status_style 'rounded'
+    set -g @catppuccin_date_time "%H:%M"
+    set -g @catppuccin_left_separator  ""
+    set -g @catppuccin_right_separator ""
+  }
 
   # Continuum/Resurrect - disable auto-restore initially
   set -g @continuum-restore 'off'
@@ -325,10 +327,12 @@ echo "  • Try splits: Ctrl-a |   and   Ctrl-a -"
 echo "  • Navigate panes: Ctrl-a h/j/k/l"
 echo "  • Reload config: Ctrl-a then r"
 echo
-echo "🎨 Optional - Install plugins for themes & extra features:"
+echo "🎨 Optional - Install plugins for beautiful themes & extra features:"
 echo "  1. Start tmux: tmux"
 echo "  2. Install plugins: Ctrl-a + I (capital I)"
-echo "  3. Enable auto-restore: Edit ~/.tmux.conf and change @continuum-restore to 'on'"
+echo "  3. Wait for installation to complete (you'll see progress messages)"
+echo "  4. Restart tmux or press Ctrl-a + r to see the Catppuccin theme"
+echo "  5. Enable auto-restore: Edit ~/.tmux.conf and change @continuum-restore to 'on'"
 echo
 echo "📋 Features included:"
 echo "  • Copy: Ctrl-a [  then v ... y  (uses system clipboard)"
