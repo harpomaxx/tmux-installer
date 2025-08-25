@@ -145,12 +145,36 @@ ensure_tmux_appimage() {
     msg "Tmux AppImage already present. Skipping download."
   fi
 
-  # Create/refresh shim that runs the AppImage.
+  # Create/refresh shim that runs the AppImage with fallback.
   cat > "$TMUX_SHIM" <<'SHIM'
 #!/usr/bin/env bash
 APP="$HOME/.local/bin/tmux.AppImage"
-# If FUSE is missing, you can run with: APPIMAGE_EXTRACT_AND_RUN=1 tmux ...
-exec "$APP" "$@"
+
+# Function to test if AppImage works
+test_appimage() {
+    timeout 3 "$APP" -V >/dev/null 2>&1
+}
+
+# Try normal AppImage first
+if test_appimage; then
+    exec "$APP" "$@"
+else
+    # Fallback to extract-and-run method for FUSE issues
+    export APPIMAGE_EXTRACT_AND_RUN=1
+    if timeout 3 "$APP" -V >/dev/null 2>&1; then
+        exec "$APP" "$@"
+    else
+        # Final fallback to system tmux if available
+        if command -v /usr/bin/tmux >/dev/null 2>&1; then
+            echo "Warning: AppImage failed, using system tmux" >&2
+            exec /usr/bin/tmux "$@"
+        else
+            echo "Error: tmux AppImage failed and no system tmux found" >&2
+            echo "Try: APPIMAGE_EXTRACT_AND_RUN=1 ~/.local/bin/tmux.AppImage" >&2
+            exit 1
+        fi
+    fi
+fi
 SHIM
   chmod +x "$TMUX_SHIM"
 
@@ -200,9 +224,7 @@ fi
 msg "Writing ~/.tmux.conf"
 cat > "$TMUX_CONF" <<'TMUXCONF'
 ##### Basics
-set -g default-terminal "tmux-256color"
-set -as terminal-features "xterm-256color:RGB"
-set -ga terminal-overrides ",xterm-256color:Tc"
+set -g default-terminal "screen-256color"
 set -g history-limit 100000
 set -g mouse on
 set -g renumber-windows on
@@ -210,6 +232,12 @@ set -g base-index 1
 setw -g pane-base-index 1
 setw -g aggressive-resize on
 set -g escape-time 10
+
+# Enhanced terminal support (only if terminal supports it)
+if-shell 'infocmp tmux-256color >/dev/null 2>&1' \
+  'set -g default-terminal "tmux-256color"'
+if-shell '[[ "$TERM" =~ "256color" ]]' \
+  'set -as terminal-features "xterm-256color:RGB"; set -ga terminal-overrides ",xterm-256color:Tc"'
 
 ##### Prefix & QoL
 unbind C-b
@@ -248,30 +276,33 @@ set -g status-right-length 120
 set -g status-left  "#S "
 set -g status-right "#(whoami) • #{hostname} • %Y-%m-%d %H:%M"
 
-##### Plugins (TPM)
-set -g @plugin 'tmux-plugins/tpm'
-set -g @plugin 'tmux-plugins/tmux-sensible'
-set -g @plugin 'tmux-plugins/tmux-yank'
-set -g @plugin 'tmux-plugins/tmux-resurrect'
-set -g @plugin 'tmux-plugins/tmux-continuum'
-set -g @plugin 'catppuccin/tmux'
-
-# Catppuccin theme tweaks
-set -g @catppuccin_flavour 'mocha'         # latte | frappe | macchiato | mocha
-set -g @catppuccin_window_status_style 'rounded'
-set -g @catppuccin_date_time "%H:%M"
-set -g @catppuccin_left_separator  ""
-set -g @catppuccin_right_separator ""
-
-# Continuum/Resurrect
-set -g @continuum-restore 'on'
-set -g @resurrect-capture-pane-contents 'on'
-
 ##### Popup binding (only if tmux >= 3.2)
-if-shell '[ "$(tmux -V | awk "{print \$2}")" \> 3.1 ]' \
+if-shell '[ "$(tmux -V | cut -d" " -f2 | tr -d "[:alpha:]")" \> "3.1" ]' \
   'bind -n F2 display-popup -E -w 80% -h 80% -T "Quick Shell"'
 
-run '~/.tmux/plugins/tpm/tpm'
+##### Plugins (TPM) - Only load if TPM exists and plugins are installed
+if-shell '[ -f ~/.tmux/plugins/tpm/tpm ]' {
+  set -g @plugin 'tmux-plugins/tpm'
+  set -g @plugin 'tmux-plugins/tmux-sensible'
+  set -g @plugin 'tmux-plugins/tmux-yank'
+  set -g @plugin 'tmux-plugins/tmux-resurrect'
+  set -g @plugin 'tmux-plugins/tmux-continuum'
+  set -g @plugin 'catppuccin/tmux'
+
+  # Catppuccin theme tweaks
+  set -g @catppuccin_flavour 'mocha'
+  set -g @catppuccin_window_status_style 'rounded'
+  set -g @catppuccin_date_time "%H:%M"
+  set -g @catppuccin_left_separator  ""
+  set -g @catppuccin_right_separator ""
+
+  # Continuum/Resurrect - disable auto-restore initially
+  set -g @continuum-restore 'off'
+  set -g @resurrect-capture-pane-contents 'on'
+
+  # Load TPM (keep this at the very bottom)
+  run '~/.tmux/plugins/tpm/tpm'
+}
 TMUXCONF
 
 # --- optional terminfo (best-effort) ---
@@ -286,18 +317,25 @@ if ! infocmp tmux-256color >/dev/null 2>&1; then
 fi
 
 # --- plugin installation note ---
-msg "TPM and plugins are ready. Install plugins manually inside tmux with: Prefix + I"
-msg "Plugins will be installed when you first run tmux and press Ctrl-a + I"
-
-# --- finish ---
-msg "Done!"
-echo "  • Tmux installed at: $TMUX_SHIM (AppImage)"
-echo "  • Start tmux: tmux"
-echo "  • Reload config: Ctrl-a then r"
-echo "  • Try splits: Ctrl-a |   and   Ctrl-a -"
-echo "  • Popup (tmux ≥ 3.2): F2"
-echo "  • Copy: Ctrl-a [  then v ... y  (uses system clipboard if available)"
-echo "  • Install plugins: Ctrl-a + I (capital I)"
+msg "Done! Tmux is ready with a safe configuration that won't hang."
 echo
-echo "If you see a FUSE error when launching tmux, run with:"
-echo "  APPIMAGE_EXTRACT_AND_RUN=1 tmux"
+echo "🎯 Quick Start:"
+echo "  • Start tmux: tmux"
+echo "  • Try splits: Ctrl-a |   and   Ctrl-a -"
+echo "  • Navigate panes: Ctrl-a h/j/k/l"
+echo "  • Reload config: Ctrl-a then r"
+echo
+echo "🎨 Optional - Install plugins for themes & extra features:"
+echo "  1. Start tmux: tmux"
+echo "  2. Install plugins: Ctrl-a + I (capital I)"
+echo "  3. Enable auto-restore: Edit ~/.tmux.conf and change @continuum-restore to 'on'"
+echo
+echo "📋 Features included:"
+echo "  • Copy: Ctrl-a [  then v ... y  (uses system clipboard)"
+echo "  • Popup (tmux ≥ 3.2): F2"
+echo "  • Mouse support: enabled"
+echo "  • Vim-style navigation: enabled"
+echo
+echo "⚠️ Troubleshooting:"
+echo "  • If tmux hangs, try: tmux -f /dev/null (starts with no config)"
+echo "  • FUSE error: APPIMAGE_EXTRACT_AND_RUN=1 tmux"
